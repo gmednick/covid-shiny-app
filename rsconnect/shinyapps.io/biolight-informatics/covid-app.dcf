@@ -5,8 +5,8 @@ account: biolight-informatics
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 3181175
-bundleId: 3844011
+bundleId: 3893999
 url: https://biolight-informatics.shinyapps.io/covid-app/
-when: 1605032614.07989
+when: 1606116624.68831
 asMultiple: FALSE
 asStatic: FALSE

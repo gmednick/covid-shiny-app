@@ -7,6 +7,7 @@ library(usmap)
 library(ggrepel)
 library(flexdashboard)
 theme_set(theme_light())
+scale_colour_discrete <- scale_colour_viridis_d
 
 url <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/"
 data <- c("time_series_covid19_confirmed_global.csv",
@@ -70,11 +71,10 @@ ui <- dashboardPage(
                     selectize = TRUE,
                     multiple = TRUE),
         tabItem(tabName = "covid",
-                imageOutput("picture", height='auto')),
-        fluidRow(box(gaugeOutput(outputId = 'Case_Guage', width = "100%", height = "200px")))
+                imageOutput("picture", height='auto'))
         
-        ),
-       
+    ),
+    
     dashboardBody(
         fluidRow(box(plotOutput('cases')), box(plotOutput('caseMap'))),
         fluidRow(box(plotOutput('deaths')), box(plotOutput('deathsMap')))
@@ -93,7 +93,7 @@ server <- function(input, output) {
             group_by(province_state, date) %>% 
             summarise(cases_n = sum(cases),
                       deaths_n = sum(deaths)
-                      ) %>% 
+            ) %>% 
             mutate(new_cases_n = cases_n - lag(cases_n, default = 0),
                    new_deaths_n = deaths_n - lag(deaths_n, default = 0)) %>% 
             ungroup() %>% 
@@ -111,7 +111,7 @@ server <- function(input, output) {
                                 group_by(province_state) %>% 
                                 slice(1), 
                             aes(label= new_cases_n), 
-                            position=position_nudge(4), hjust= 1, show.legend=FALSE)
+                            position=position_nudge(8), hjust= -5, show.legend=FALSE)
     })
     
     output$caseMap <- renderPlot({
@@ -119,12 +119,12 @@ server <- function(input, output) {
                    values = "cases_per_1e6",
                    color = "black",
                    labels = FALSE) + 
-            scale_fill_gradient(name = "Cases per million",
-                                low = "lightgreen", high = "tomato") +
+            scale_fill_viridis_c(name = "Cases per million",
+                                 alpha = 0.7) +
             theme(legend.position = "right",  plot.title = element_text(hjust = 0.5, face = 'bold', size = 20, color = '#367588')) +
             labs(title = paste0("Total Cases in the USA: ", formatC(max(us_total_sums$total_cases), format = 'd', big.mark = ',')))
     })            
-
+    
     output$deaths <- renderPlot({
         us_data %>% 
             group_by(province_state, date) %>% 
@@ -145,12 +145,12 @@ server <- function(input, output) {
                 color = 'State'
             ) +
             geom_text_repel(data=. %>% 
-                          arrange(desc(date)) %>% 
-                          group_by(province_state) %>% 
-                          slice(1), 
-                      aes(label= new_deaths_n), 
-                      position=position_nudge(4), 
-                      hjust=1, show.legend=FALSE)
+                                arrange(desc(date)) %>% 
+                                group_by(province_state) %>% 
+                                slice(1), 
+                            aes(label= new_deaths_n), 
+                            position=position_nudge(4), 
+                            hjust=-3, show.legend=FALSE)
     })
     
     output$deathsMap <- renderPlot({
@@ -158,8 +158,8 @@ server <- function(input, output) {
                    values = "deaths_per_1e6",
                    color = "black",
                    labels = FALSE) + 
-            scale_fill_gradient(name = "Deaths per million",
-                                low = "lightgreen", high = "tomato") +
+            scale_fill_viridis_c(name = "Deaths per million",
+                                alpha = 0.7) +
             theme(legend.position = "right",  plot.title = element_text(hjust = 0.5, face = 'bold', size = 20, color = '#367588')) +
             labs(title = paste0("Total Deaths in the USA: ", formatC(max(us_total_sums$total_deaths), format = 'd', big.mark = ",")))
     })
