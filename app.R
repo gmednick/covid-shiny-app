@@ -1,11 +1,9 @@
 library(tidyverse)
 library(lubridate)
-library(tidymodels)
 library(shiny)
-library(shinydashboard)
 library(usmap)
 library(ggrepel)
-library(flexdashboard)
+library(plotly)
 theme_set(theme_light())
 scale_colour_discrete <- scale_colour_viridis_d
 
@@ -45,8 +43,8 @@ us_totals <- us_data %>%
               deaths = max(deaths),
               population = max(population)) %>%
     filter(cases > 0) %>%
-    mutate(deaths_per_1e6 = 1000000 * deaths / population,
-           cases_per_1e6 = 1000000 * cases / population,
+    mutate(deaths_per_1e6 = 1000000 * (deaths / population),
+           cases_per_1e6 = 1000000 * (cases / population),
            state = province_state) %>%
     filter(!is.na(deaths_per_1e6)) %>% 
     arrange(desc(cases))
@@ -55,11 +53,33 @@ us_total_sums <- us_data %>%
     group_by(date) %>%
     summarize(total_cases = sum(cases), 
               total_deaths = sum(deaths))
-test <- us_data %>%
-    distinct(province_state, .keep_all = T) %>% 
-    drop_na(population) %>% 
-    summarize(pop_tot = sum(population))
+cbs <- plot_usmap(data = us_totals, 
+                  values = "cases_per_1e6",
+                  color = "black",
+                  labels = FALSE) +
+    ggplot2::aes(text = paste0('State: ', province_state,
+                               '\nPopulation: ', format(population, big.mark = ','),
+                               '\nCases: ', format(round(cases_per_1e6, 0), big.mark = ',')
+    )) +
+    scale_fill_viridis_c(name = "Cases per million",
+                         alpha = 0.5) +
+    theme(legend.position = "right",  plot.title = element_text(face = 'bold', size = 18, color = '#367588')) +
+    labs(title = paste0("Total Cases in the USA: ", formatC(max(us_total_sums$total_cases), format = 'd', big.mark = ',')))
+
+dbs <- plot_usmap(data = us_totals, 
+                  values = "deaths_per_1e6",
+                  color = "black",
+                  labels = FALSE) +
+    ggplot2::aes(text = paste0('State: ', province_state,
+                               '\nPopulation: ', format(population, big.mark = ','),
+                               '\nDeaths: ', format(round(deaths_per_1e6, 0), big.mark = ',')
+                              )) +
+    scale_fill_viridis_c(name = "Deaths per million",
+                         alpha = 0.5) +
+    theme(legend.position = "right",  plot.title = element_text(face = 'bold', size = 18, color = '#367588')) +
+    labs(title = paste0("Total Deaths in the USA: ", formatC(max(us_total_sums$total_deaths), format = 'd', big.mark = ",")))
 #------------------------------------------------------------
+
 ui <- dashboardPage(
     dashboardHeader(title = 'Covid Case Tracker'),
     
@@ -76,14 +96,12 @@ ui <- dashboardPage(
     ),
     
     dashboardBody(
-        fluidRow(box(plotOutput('cases')), box(plotOutput('caseMap'))),
-        fluidRow(box(plotOutput('deaths')), box(plotOutput('deathsMap')))
+        fluidRow(box(plotOutput('cases')), box(plotlyOutput('caseMap'))),
+        fluidRow(box(plotOutput('deaths')), box(plotlyOutput('deathsMap')))
     )
 )
 server <- function(input, output) {
     # sidebar
-    output$picture <- renderGauge(test, env = parent.frame(), quoted = FALSE)
-    
     output$picture <- renderImage({
         return(list(src = "covid.jpg", contentType = "image/jpg", alt = "covid", height = 195))
     }, deleteFile = FALSE) #where the src is wherever you have the picture
@@ -114,16 +132,11 @@ server <- function(input, output) {
                             position=position_nudge(8), hjust= -5, show.legend=FALSE)
     })
     
-    output$caseMap <- renderPlot({
-        plot_usmap(data = us_totals, 
-                   values = "cases_per_1e6",
-                   color = "black",
-                   labels = FALSE) + 
-            scale_fill_viridis_c(name = "Cases per million",
-                                 alpha = 0.7) +
-            theme(legend.position = "right",  plot.title = element_text(hjust = 0.5, face = 'bold', size = 20, color = '#367588')) +
-            labs(title = paste0("Total Cases in the USA: ", formatC(max(us_total_sums$total_cases), format = 'd', big.mark = ',')))
-    })            
+    output$caseMap <- renderPlotly({
+        ggplotly(cbs,
+                 tooltip = 'text') %>% 
+            config(displayModeBar = FALSE)
+    })  
     
     output$deaths <- renderPlot({
         us_data %>% 
@@ -149,19 +162,14 @@ server <- function(input, output) {
                                 group_by(province_state) %>% 
                                 slice(1), 
                             aes(label= new_deaths_n), 
-                            position=position_nudge(4), 
-                            hjust=-3, show.legend=FALSE)
+                            position=position_nudge(8), 
+                            hjust=-5, show.legend=FALSE)
     })
     
-    output$deathsMap <- renderPlot({
-        plot_usmap(data = us_totals, 
-                   values = "deaths_per_1e6",
-                   color = "black",
-                   labels = FALSE) + 
-            scale_fill_viridis_c(name = "Deaths per million",
-                                alpha = 0.7) +
-            theme(legend.position = "right",  plot.title = element_text(hjust = 0.5, face = 'bold', size = 20, color = '#367588')) +
-            labs(title = paste0("Total Deaths in the USA: ", formatC(max(us_total_sums$total_deaths), format = 'd', big.mark = ",")))
+    output$deathsMap <- renderPlotly({
+        ggplotly(dbs,
+                 tooltip = 'text') %>% 
+            config(displayModeBar = FALSE)
     })
 }
 
