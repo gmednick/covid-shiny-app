@@ -1,3 +1,15 @@
+---
+title: "Untitled"
+author: "Gabe Mednick"
+date: "11/23/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+```
+
+```{r}
 library(tidyverse)
 library(lubridate)
 library(shiny)
@@ -8,14 +20,19 @@ library(plotly)
 library(viridis)
 theme_set(theme_light())
 scale_colour_discrete <- scale_colour_viridis_d
+```
 
+```{r}
 url <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/"
 data <- c("time_series_covid19_confirmed_global.csv",
           "time_series_covid19_deaths_global.csv",
           "time_series_covid19_confirmed_US.csv",
           "time_series_covid19_deaths_US.csv")
 urls <- str_c(url, data)
+```
 
+
+```{r}
 us_confirmed <- read_csv(urls[3]) %>%
   pivot_longer(cols = -(UID:Combined_Key), names_to = "date", values_to = "cases") %>%
   select(Admin2:cases) %>%
@@ -31,8 +48,11 @@ us_data <- us_deaths %>%
   select(deaths, date, combined_key, population) %>% 
   left_join(us_confirmed, by = c('date', 'combined_key')) %>% 
   select(date, province_state, cases, deaths, population, lon = long, lat) %>% 
-  filter(!province_state %in% c('Diamond Princess', 'Grand Princess')) 
+  filter(!province_state %in% c('Diamond Princess', 'Grand Princess'))
+```
 
+
+```{r}
 us_state <- us_data %>%
   group_by(province_state, date) %>%
   summarize(cases = sum(cases), 
@@ -56,7 +76,11 @@ us_total_sums <- us_data %>%
   group_by(date) %>%
   summarize(total_cases = sum(cases), 
             total_deaths = sum(deaths))
+```
 
+
+```{r}
+# Cases per million per State map
 cbs <- plot_usmap(data = us_totals, 
                   values = "cases_per_1e6",
                   color = "black",
@@ -70,6 +94,11 @@ cbs <- plot_usmap(data = us_totals,
                        alpha = 0.5) +
   theme(legend.position = "right",  plot.title = element_text(face = 'bold', size = 18, color = '#367588')) +
   labs(title = paste0("Total Cases in the USA: ", formatC(max(us_total_sums$total_cases), format = 'd', big.mark = ',')))
+```
+
+
+```{r}
+# Deaths per million per State map
 
 dbs <- plot_usmap(data = us_totals, 
                   values = "deaths_per_1e6",
@@ -84,8 +113,13 @@ dbs <- plot_usmap(data = us_totals,
                        alpha = 0.5) +
   theme(legend.position = "right",  plot.title = element_text(face = 'bold', size = 18, color = '#367588')) +
   labs(title = paste0("Total Deaths in the USA: ", formatC(max(us_total_sums$total_deaths), format = 'd', big.mark = ",")))
-#------------------------------------------------------------
+```
 
+
+
+#------------------------------------------------------------
+Dashboard layout
+```{r}
 ui <- dashboardPage(
   dashboardHeader(title = 'Covid Case Tracker'),
   
@@ -100,18 +134,27 @@ ui <- dashboardPage(
             imageOutput("picture", height='auto'))
     
   ),
-  
+ 
   dashboardBody(
     fluidRow(box(plotOutput('cases')), box(plotlyOutput('caseMap'))),
     fluidRow(box(plotOutput('deaths')), box(plotlyOutput('deathsMap')))
   )
 )
+
+```
+
+
+```{r}
 server <- function(input, output) {
+    
   # sidebar
   output$picture <- renderImage({
     return(list(src = "covid.jpg", contentType = "image/jpg", alt = "covid", height = 195))
-  }, deleteFile = FALSE) #where the src is wherever you have the picture
-  # dashboard body
+  }, deleteFile = FALSE) #src specifies path to jpg
+  
+  #------- dashboard body ------------
+  
+  # Line plot of cases vs time by State  
   output$cases <- renderPlot({
     us_data %>% 
       group_by(province_state, date) %>% 
@@ -138,12 +181,14 @@ server <- function(input, output) {
                       position=position_nudge(8), hjust= -5, show.legend=FALSE)
   })
   
+  # Cases per million by State map
   output$caseMap <- renderPlotly({
     ggplotly(cbs,
              tooltip = 'text') %>% 
       config(displayModeBar = FALSE)
   })  
   
+  # Line plot of deaths vs time by State
   output$deaths <- renderPlot({
     us_data %>% 
       group_by(province_state, date) %>% 
@@ -172,6 +217,7 @@ server <- function(input, output) {
                       hjust=-5, show.legend=FALSE)
   })
   
+  # Deaths per million by State map
   output$deathsMap <- renderPlotly({
     ggplotly(dbs,
              tooltip = 'text') %>% 
@@ -180,3 +226,6 @@ server <- function(input, output) {
 }
 
 shinyApp(ui = ui, server = server)
+```
+
+
