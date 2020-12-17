@@ -5,9 +5,9 @@ account: biolight-informatics
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 3181175
-bundleId: 3898728
+bundleId: 3995520
 url: https://biolight-informatics.shinyapps.io/covid-app/
-when: 1606206014.19515
+when: 1608104414.65535
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: covid-traker/app.Rmd
+ignoredFiles: app2.R|covid_app_tabs.Rmd|test_rmd.Rmd|covid-tracker/covid-tracker-app.R|covid-tracker/app-devo/app.Rmd|covid-tracker/app-devo/covid-tracker-app.Rmd

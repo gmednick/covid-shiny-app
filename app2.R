@@ -7,10 +7,7 @@ library(ggrepel)
 library(plotly)
 library(viridis)
 theme_set(theme_light())
-library(dashboardthemes)
-library(shinydashboardPlus)
 scale_colour_discrete <- scale_colour_viridis_d
-
 
 url <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/"
 data <- c("time_series_covid19_confirmed_global.csv",
@@ -51,7 +48,7 @@ us_totals <- us_state %>%
   filter(cases > 0) %>%
   mutate(deaths_per_1e6 = 1000000 * (deaths / population),
          cases_per_1e6 = 1000000 * (cases / population)
-         ) %>%
+  ) %>%
   filter(!is.na(deaths_per_1e6)) %>% 
   arrange(desc(cases))
 
@@ -90,7 +87,6 @@ cbs <- plot_usmap(data = us_totals,
   scale_fill_viridis_c(name = "Cases per million",
                        alpha = 0.5) +
   theme(legend.position = "right",  plot.title = element_text(face = 'bold', size = 18, color = '#367588')) +
-  theme(panel.background = element_rect(color = "grey80", fill = "grey80")) +
   labs(title = paste0("Total Cases in the USA: ", formatC(max(us_total_sums$total_cases), format = 'd', big.mark = ',')))
 
 dbs <- plot_usmap(data = us_totals, 
@@ -105,35 +101,31 @@ dbs <- plot_usmap(data = us_totals,
   scale_fill_viridis_c(name = "Deaths per million",
                        alpha = 0.5) +
   theme(legend.position = "right",  plot.title = element_text(face = 'bold', size = 18, color = '#367588')) +
-  theme(panel.background = element_rect(color = "grey80", fill = "grey80")) +
   labs(title = paste0("Total Deaths in the USA: ", formatC(max(us_total_sums$total_deaths), format = 'd', big.mark = ",")))
 #------------------------------------------------------------
 
-ui <- dashboardPage(
-  dashboardHeader(title = 'Covid Case Tracker'),
-  dashboardSidebar(
-    selectInput("state", 
-                label = "Select States:",
+ui <- navbarPage('Covid Case Tracker', theme = shinytheme("flatly"),
+  tabPanel("Cases",
+  sidebarLayout(
+    sidebarPanel("state", 
+                label = "State:",
                 choices = unique(us_data$state), 
                 selected = c('California', 'Hawaii', 'Florida'),
                 selectize = TRUE,
                 multiple = TRUE),
     tabItem(tabName = "covid",
-            imageOutput("picture", height='auto'))
+            imageOutput("picture", height='auto')),
+    mainPanel(fluidRow(box(plotOutput('cases'))), fluidRow(box(plotlyOutput('caseMap'))))
     
-  ),
-  
+  )),
   dashboardBody(
-    shinyDashboardThemes(
-      theme = "blue_gradient"
-    ),  
-    fluidRow(valueBoxOutput("caseCnt", width = 6),
-             valueBoxOutput("deathCnt", width = 6)), 
-    fluidRow(boxPlus(plotOutput('cases'), width = 12)), fluidRow(boxPlus(plotlyOutput('caseMap'), width = 12)),
-    fluidRow(boxPlus(plotOutput('deaths'), width = 12)), fluidRow(boxPlus(plotlyOutput('deathsMap'), width = 12))
+    fluidRow(valueBoxOutput("caseCnt"),
+             valueBoxOutput("deathCnt")), 
+    fluidRow(box(plotOutput('cases'))), fluidRow(box(plotlyOutput('caseMap'))),
+    fluidRow(box(plotOutput('deaths'))), fluidRow(box(plotlyOutput('deathsMap')))
   )
 )
-  server <- function(input, output) {
+server <- function(input, output) {
   # sidebar
   output$picture <- renderImage({
     return(list(src = "covid.jpg", contentType = "image/jpg", alt = "covid", height = 195))
@@ -142,15 +134,14 @@ ui <- dashboardPage(
   output$caseCnt <- renderValueBox({
     valueBox(
       value = prettyNum(sum(daily_summary$total_new_cases), big.mark = ","),
-      subtitle = paste0("US cases on ", as.character(max(us_total_sums$date))),
-      icon =icon("viruses")
+      subtitle = paste0("US cases per day: ", as.character(max(us_total_sums$date)))
+      
     )
   })
   output$deathCnt <- renderValueBox({
     valueBox(
       value = prettyNum(sum(daily_summary$total_new_death), big.mark = ","),
-      subtitle = paste0("US deaths on ", as.character(max(us_total_sums$date))),
-      icon =icon("heartbeat")
+      subtitle = paste0("US deaths per day: ", as.character(max(us_total_sums$date)))
     )
   })
   output$cases <- renderPlot({
@@ -165,10 +156,9 @@ ui <- dashboardPage(
       filter(state %in% input$state) %>% 
       ggplot(aes(x = date, y = new_cases_n, color = state)) +
       geom_line(size = 1, alpha = 0.5) +
-      theme(plot.title = element_text(face = 'bold', color = '#367588', size = 22)) +
-      theme(panel.background = element_rect(color = "grey80", fill = "grey80")) +
+      theme(plot.title = element_text(hjust = 0.5, face = 'bold', color = '#367588', size = 18)) +
       labs(
-        title = 'Cases per Day by State',
+        title = 'Cases per Day',
         subtitle = paste0("latest data from: ", as.character(max(us_total_sums$date))),
         y = 'Cases',
         color = 'State') +
@@ -198,10 +188,9 @@ ui <- dashboardPage(
       filter(state %in% input$state) %>% 
       ggplot(aes(x = date, y = new_deaths_n, color = state)) +
       geom_line(size = 1, alpha = 0.5)   +
-      theme(plot.title = element_text(face = 'bold', color = '#367588', size = 22)) +
-      theme(panel.background = element_rect(color = "grey80", fill = "grey80")) +
+      theme(plot.title = element_text(hjust = 0.5, face = 'bold', color = '#367588', size = 18)) +
       labs(
-        title = 'Deaths per Day by State',
+        title = 'Deaths per Day',
         subtitle = paste0("latest data from: ", as.character(max(us_total_sums$date))),
         y = 'Deaths',
         color = 'State'
